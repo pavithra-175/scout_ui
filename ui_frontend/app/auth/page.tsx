@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FaGithub, FaGoogle } from "react-icons/fa";
 
 export default function AuthPage() {
   return (
@@ -69,7 +70,7 @@ export default function AuthPage() {
 
 
         {/* ================= RIGHT SIDE (AUTH CARD) ================= */}
-        <div className="bg-[#252538]/70 backdrop-blur-xl border border-white/10 rounded-2xl p-10 max-w-md w-full mx-auto">
+        <div className="bg-[#252538]/70 backdrop-blur-xl border border-white/10 rounded-2xl p-10 max-w-md w-full mx-auto shadow-2xl">
 
           <h2 className="text-2xl font-semibold text-center mb-2">
             Join Scout
@@ -80,13 +81,15 @@ export default function AuthPage() {
           </p>
 
           {/* GitHub Button */}
-          <button className="w-full bg-[#2f2f48] hover:bg-[#3a3a5f] transition py-3 rounded-xl mb-4">
-            Continue with GitHub
+          <button className="w-full flex items-center justify-center gap-3 bg-[#2f2f48] hover:bg-[#3a3a5f] transition py-3 rounded-xl border border-white/10 hover:border-highlightcolor/40 mb-4">
+            <FaGithub className="text-xl" />
+            <span className="font-medium">Continue with GitHub</span>
           </button>
 
           {/* Google Button */}
-          <button className="w-full bg-[#2f2f48] hover:bg-[#3a3a5f] transition py-3 rounded-xl">
-            Continue with Google
+          <button className="w-full flex items-center justify-center gap-3 bg-[#2f2f48] hover:bg-[#3a3a5f] transition py-3 rounded-xl border border-white/10 hover:border-highlightcolor/40">
+            <FaGoogle className="text-xl " />
+            <span className="font-medium">Continue with Google</span>
           </button>
 
           <p className="text-xs text-gray-500 text-center mt-6">

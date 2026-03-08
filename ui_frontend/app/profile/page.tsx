@@ -123,11 +123,10 @@ export default function ProfilePage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as TabType)}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                activeTab === tab.key
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === tab.key
                   ? "bg-white/5 text-white"
                   : "text-white/40 hover:text-white/70"
-              }`}
+                }`}
             >
               {tab.label}
             </button>

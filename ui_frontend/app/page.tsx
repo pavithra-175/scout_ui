@@ -42,11 +42,11 @@ export default function Home() {
           </div>
 
           {/* Right */}
-            <Link href="/auth">
+          <Link href="/auth">
             <button className="bg-highlightcolor text-black px-5 py-2 rounded-full font-semibold hover:opacity-80 transition">
               Sign In
             </button>
-            </Link>
+          </Link>
 
         </div>
       </nav>
@@ -68,10 +68,10 @@ export default function Home() {
 
         <div className="mt-10 flex gap-4 flex-wrap justify-center">
           <Link href="/auth">
-          <button className="bg-highlightcolor text-black px-8 py-3 rounded-full font-semibold hover:opacity-80 transition">
-            Get Started
-          </button>
-</Link>
+            <button className="bg-highlightcolor text-black px-8 py-3 rounded-full font-semibold hover:opacity-80 transition">
+              Get Started
+            </button>
+          </Link>
         </div>
 
       </section>

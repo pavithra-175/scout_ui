@@ -73,13 +73,12 @@ function StepIndicator({ step }: { step: number }) {
         <React.Fragment key={s.num}>
           <div className="flex flex-col items-center gap-1">
             <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                step > s.num
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${step > s.num
                   ? "bg-highlightcolor text-bgcolor"
                   : step === s.num
-                  ? "bg-highlightcolor text-bgcolor ring-4 ring-highlightcolor/30"
-                  : "bg-white/10 text-white/40"
-              }`}
+                    ? "bg-highlightcolor text-bgcolor ring-4 ring-highlightcolor/30"
+                    : "bg-white/10 text-white/40"
+                }`}
             >
               {step > s.num ? <Check size={16} /> : s.num}
             </div>
@@ -369,11 +368,10 @@ function Step2({ data, setData }: { data: SkillsInfo; setData: (d: SkillsInfo) =
             <button
               key={r.key}
               onClick={() => setData({ ...data, role: r.key as Role })}
-              className={`text-left p-4 rounded-xl border transition-all duration-200 ${
-                data.role === r.key
+              className={`text-left p-4 rounded-xl border transition-all duration-200 ${data.role === r.key
                   ? "border-highlightcolor bg-highlightcolor/15"
                   : "border-white/10 bg-white/5 hover:border-white/25"
-              }`}
+                }`}
             >
               <div className="font-semibold text-white text-sm">{r.title}</div>
               <div className="text-white/40 text-xs mt-0.5">{r.sub}</div>
@@ -390,11 +388,10 @@ function Step2({ data, setData }: { data: SkillsInfo; setData: (d: SkillsInfo) =
             <button
               key={d}
               onClick={() => toggleDomain(d)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${
-                data.domain.includes(d)
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${data.domain.includes(d)
                   ? "border-highlightcolor bg-highlightcolor/20 text-highlightcolor"
                   : "border-white/10 bg-white/5 text-white/50 hover:border-white/30 hover:text-white/80"
-              }`}
+                }`}
             >
               {d}
             </button>
@@ -449,11 +446,10 @@ function Step2({ data, setData }: { data: SkillsInfo; setData: (d: SkillsInfo) =
             <button
               key={level}
               onClick={() => setData({ ...data, experience: level })}
-              className={`py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                data.experience === level
+              className={`py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${data.experience === level
                   ? "border-highlightcolor bg-highlightcolor/20 text-highlightcolor"
                   : "border-white/10 bg-white/5 text-white/50 hover:border-white/25 hover:text-white/80"
-              }`}
+                }`}
             >
               {level}
             </button>
@@ -469,11 +465,10 @@ function Step2({ data, setData }: { data: SkillsInfo; setData: (d: SkillsInfo) =
             <button
               key={opt}
               onClick={() => setData({ ...data, availability: opt })}
-              className={`py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-all duration-200 ${
-                data.availability === opt
+              className={`py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-all duration-200 ${data.availability === opt
                   ? "border-highlightcolor bg-highlightcolor/20 text-highlightcolor"
                   : "border-white/10 bg-white/5 text-white/50 hover:border-white/25 hover:text-white/80"
-              }`}
+                }`}
             >
               {opt}
             </button>
@@ -606,15 +601,13 @@ function Step3({ data, setData }: { data: LinksGoals; setData: (d: LinksGoals) =
             <button
               key={opt}
               onClick={() => toggleGoal(opt)}
-              className={`flex items-center gap-2.5 text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ${
-                data.lookingFor.includes(opt)
+              className={`flex items-center gap-2.5 text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ${data.lookingFor.includes(opt)
                   ? "border-highlightcolor bg-highlightcolor/15 text-white"
                   : "border-white/10 bg-white/5 text-white/50 hover:border-white/25 hover:text-white/80"
-              }`}
+                }`}
             >
-              <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
-                data.lookingFor.includes(opt) ? "bg-highlightcolor border-highlightcolor" : "border-white/25"
-              }`}>
+              <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${data.lookingFor.includes(opt) ? "bg-highlightcolor border-highlightcolor" : "border-white/25"
+                }`}>
                 {data.lookingFor.includes(opt) && <Check size={11} className="text-bgcolor" />}
               </span>
               {opt}

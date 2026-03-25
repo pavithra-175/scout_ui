@@ -1,911 +1,1095 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Users, Mail, Link as LinkIcon, Copy, Share2, Trash2, Check, X, Edit2, Plus, MessageSquare, ChevronRight, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Users, Share2, Trash2, Check, X, Plus, MessageSquare, Video, Calendar, ListTodo, Settings, UserPlus, Search, Smile, Paperclip, Image, Send, Minus, Edit2, ChevronDown, Github, SlidersHorizontal } from 'lucide-react';
+import Link from 'next/link';
 
-interface TeamMember {
-  id: string;
-  name: string;
-  initials: string;
-  color: string;
-  role: string;
-  skills: string[];
-  leader?: boolean;
-}
+// ==================== THEME ====================
+// bg: #1C1C2A  highlight: #C4AAF1  surface: #232333  card: rgba(255,255,255,0.04)
 
-interface PendingInvitation {
-  id: string;
-  name: string;
-  email: string;
-  initials: string;
-  color: string;
-  status: 'pending' | 'accepted' | 'declined';
-  teamId: string;
-}
+const H = '#C4AAF1'; // highlight
+const BG = '#1C1C2A';
+const SURF = '#232333';
+const CARD = 'rgba(255,255,255,0.04)';
 
-interface JoinRequest {
-  id: string;
-  name: string;
-  role: string;
-  location: string;
-  skills: string[];
-  initials: string;
-  color: string;
-  teamId: string;
-}
+// ==================== TYPES ====================
+interface TeamMember { id: string; name: string; initials: string; color: string; role: string; skills: string[]; leader?: boolean; }
+interface PendingInvitation { id: string; name: string; email: string; initials: string; color: string; role: string; skills: string[]; status: 'pending'; teamId: string; daysAgo: number; }
+interface JoinRequest { id: string; name: string; role: string; location: string; skills: string[]; initials: string; color: string; teamId: string; gitActivity?: string; }
+interface Task { id: string; title: string; status: 'Done' | 'In Progress' | 'To Do'; teamId: string; }
+interface ChatMessage { id: string; sender: string; text: string; time: string; isMine: boolean; type: 'text' | 'image' | 'file'; }
+interface Team { id: string; name: string; description: string; tags: string[]; members: TeamMember[]; maxMembers: number; inviteLink: string; isPublic: boolean; createdAt: string; ownerId: string; image?: string | null; }
 
-interface Team {
-  id: string;
-  name: string;
-  description: string;
-  tags: string[];
-  members: TeamMember[];
-  maxMembers: number;
-  inviteLink: string;
-  isPublic: boolean;
-  createdAt: string;
-  chatId?: string;
-}
+const TAG_SUGGESTIONS = ['AI', 'ML', 'React', 'Next.js', 'Python', 'Node.js', 'Blockchain', 'Mobile', 'GreenTech', 'SaaS', 'Web3', 'TypeScript', 'DevOps', 'Design', 'DataScience', 'HealthTech', 'EdTech', 'Fintech'];
+const SUGGESTED_PEOPLE = [
+  { id: 'p1', name: 'Raj Kumar', initials: 'RK', color: 'bg-orange-500/20 text-orange-300', gender: 'Male', role: 'ML Engineer', skills: ['Python', 'TensorFlow', 'AI'], gitActivity: '47 commits/mo', location: 'Bangalore', bio: '4 yrs building production AI. Open-source contributor.', experience: 'Expert', availability: 'Full-time', keywords: ['AI/ML', 'Data Science', 'deep learning'] },
+  { id: 'p2', name: 'Ananya S.', initials: 'AS', color: 'bg-pink-500/20 text-pink-300', gender: 'Female', role: 'React Developer', skills: ['React', 'TypeScript', 'SaaS'], gitActivity: '62 commits/mo', location: 'Mumbai', bio: 'Frontend specialist. Design systems expert.', experience: 'Intermediate', availability: 'Part-time', keywords: ['Web Development', 'UI/UX'] },
+  { id: 'p3', name: 'Dev Patel', initials: 'DP', color: 'bg-blue-500/20 text-blue-300', gender: 'Male', role: 'Full-stack', skills: ['Node.js', 'React', 'ML'], gitActivity: '38 commits/mo', location: 'Pune', bio: 'Bridging frontend and ML. Clean APIs.', experience: 'Intermediate', availability: 'Weekends only', keywords: ['Backend', 'Fullstack', 'AI'] },
+  { id: 'p4', name: 'Sara Chen', initials: 'SC', color: 'bg-green-500/20 text-green-300', gender: 'Female', role: 'Data Scientist', skills: ['Python', 'DataScience', 'AI'], gitActivity: '29 commits/mo', location: 'Hyderabad', bio: 'NLP & CV researcher. PhD candidate at IIT.', experience: 'Expert', availability: 'Full-time', keywords: ['NLP', 'Computer Vision', 'Research'] },
+  { id: 'p5', name: 'Marco R.', initials: 'MR', color: 'bg-purple-500/20 text-purple-300', gender: 'Male', role: 'DevOps', skills: ['DevOps', 'Node.js', 'TypeScript'], gitActivity: '55 commits/mo', location: 'Chennai', bio: 'Zero-downtime deployments. IaC evangelist.', experience: 'Expert', availability: 'Contract', keywords: ['Cloud', 'AWS', 'Kubernetes', 'Docker'] },
+];
 
-interface ChatGroup {
-  id: string;
-  teamId: string;
-  teamName: string;
-  members: number;
-  lastMessage?: string;
-  lastMessageTime?: string;
-}
-
+// ==================== MAIN PAGE ====================
 export default function TeamPage() {
+  const ME_ID = 'me';
+
   const [teams, setTeams] = useState<Team[]>([
     {
-      id: '1',
-      name: 'HackMIT Innovation Squad',
-      description: 'Building an AI-powered accessibility tool for the visually impaired.',
-      tags: ['AI', 'Accessibility', 'React'],
+      id: '1', name: 'AI Startup Project', description: 'Building an AI-powered content creation platform', tags: ['AI', 'ML', 'SaaS'],
       members: [
-        { id: '1', name: 'John Doe', initials: 'JD', color: 'bg-blue-500', role: 'Lead', skills: ['React', 'TypeScript'], leader: true },
-        { id: '2', name: 'Sarah Chen', initials: 'SC', color: 'bg-purple-500', role: 'Frontend', skills: ['Vue', 'CSS'] },
-        { id: '3', name: 'Alex Rivera', initials: 'AR', color: 'bg-orange-500', role: 'Backend', skills: ['Node.js', 'PostgreSQL'] }
+        { id: ME_ID, name: 'You', initials: 'ME', color: 'bg-[#C4AAF1]/20 text-[#C4AAF1]', role: 'Lead Developer', skills: ['React', 'TypeScript'], leader: true },
+        { id: '2', name: 'Sarah C.', initials: 'SC', color: 'bg-teal-500/20 text-teal-300', role: 'ML Engineer', skills: ['Python', 'PyTorch'] },
+        { id: '3', name: 'Mike P.', initials: 'MP', color: 'bg-yellow-500/20 text-yellow-300', role: 'Designer', skills: ['Figma', 'UI/UX'] }
       ],
-      maxMembers: 5,
-      inviteLink: 'https://scout.app/invite/abc123xyz',
-      isPublic: true,
-      createdAt: '2024-01-15',
-      chatId: 'chat_1'
-    }
-  ]);
-
-  const [chatGroups, setChatGroups] = useState<ChatGroup[]>([
+      maxMembers: 5, inviteLink: 'https://scout.app/invite/ai-startup', isPublic: true, createdAt: '2024-01-15', ownerId: ME_ID
+    },
     {
-      id: 'chat_1',
-      teamId: '1',
-      teamName: 'HackMIT Innovation Squad',
-      members: 3,
-      lastMessage: 'John: Great progress on the accessibility features!',
-      lastMessageTime: '2m ago'
+      id: '2', name: 'Hackathon Team Alpha', description: 'Developing a sustainable energy tracking app', tags: ['GreenTech', 'Mobile'],
+      members: [
+        { id: '4', name: 'Alex R.', initials: 'AR', color: 'bg-green-500/20 text-green-300', role: 'Project Manager', skills: ['Agile'], leader: true },
+        { id: '5', name: 'Elena K.', initials: 'EK', color: 'bg-blue-500/20 text-blue-300', role: 'Fullstack', skills: ['Next.js'] },
+        { id: ME_ID, name: 'You', initials: 'ME', color: 'bg-[#C4AAF1]/20 text-[#C4AAF1]', role: 'Frontend Dev', skills: ['React'] }
+      ],
+      maxMembers: 4, inviteLink: 'https://scout.app/invite/alpha', isPublic: false, createdAt: '2024-02-10', ownerId: '4'
     }
   ]);
 
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>('1');
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('1');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'chat' | 'meetings' | 'requests'>('overview');
   const [showCreateTeam, setShowCreateTeam] = useState(false);
-  const [showEditTeam, setShowEditTeam] = useState(false);
-  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
-  const [showInviteMembersModal, setShowInviteMembersModal] = useState(false);
+  const [showShareFeedModal, setShowShareFeedModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showAddPeopleModal, setShowAddPeopleModal] = useState(false);
+  const [justInvited, setJustInvited] = useState<string | null>(null);
 
-  const [newTeamData, setNewTeamData] = useState({
-    name: '',
-    description: '',
-    tags: [] as string[],
-    maxMembers: 5,
-    isPublic: true
-  });
-
+  const [newTeamData, setNewTeamData] = useState({ name: '', description: '', tags: [] as string[], maxMembers: 5, isPublic: true, image: null as string | null });
   const [tagInput, setTagInput] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [addMemberEmail, setAddMemberEmail] = useState('');
-  const [addMemberRole, setAddMemberRole] = useState('Member');
+
+  const [tasks, setTasks] = useState<Task[]>([
+    { id: '1', title: 'Design system setup', status: 'Done', teamId: '1' },
+    { id: '2', title: 'API architecture', status: 'In Progress', teamId: '1' },
+    { id: '3', title: 'ML model training', status: 'In Progress', teamId: '1' },
+    { id: '4', title: 'Frontend scaffolding', status: 'To Do', teamId: '1' },
+  ]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
 
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([
-    { id: '1', name: 'Emma Wilson', email: 'emma@example.com', initials: 'EW', color: 'bg-red-500', status: 'pending', teamId: '1' },
-    { id: '2', name: 'Michael Brown', email: 'michael@example.com', initials: 'MB', color: 'bg-green-500', status: 'pending', teamId: '1' }
+    { id: 'i1', name: 'Emma Wilson', email: 'emma@example.com', initials: 'EW', color: 'bg-pink-500/20 text-pink-300', role: 'UI/UX Designer', skills: ['Figma', 'Design'], status: 'pending', teamId: '1', daysAgo: 3 },
+    { id: 'i2', name: 'Michael Brown', email: 'michael@example.com', initials: 'MB', color: 'bg-blue-500/20 text-blue-300', role: 'Backend Dev', skills: ['Node.js', 'Go'], status: 'pending', teamId: '1', daysAgo: 9 },
   ]);
 
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([
-    { id: '1', name: 'Lisa Johnson', role: 'Full-stack Developer', location: 'New York', skills: ['React', 'Node.js', 'MongoDB'], initials: 'LJ', color: 'bg-gray-500', teamId: '1' },
-    { id: '2', name: 'David Park', role: 'AI/ML Engineer', location: 'San Francisco', skills: ['Python', 'TensorFlow', 'PyTorch'], initials: 'DP', color: 'bg-indigo-500', teamId: '1' }
+    { id: 'r1', name: 'Lisa Johnson', role: 'Full-stack Developer', location: 'New York', skills: ['React', 'Node.js', 'AI'], initials: 'LJ', color: 'bg-purple-500/20 text-purple-300', teamId: '1', gitActivity: '41 commits/mo' }
   ]);
 
-  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-
-  const selectedTeam = teams.find(t => t.id === selectedTeamId);
-  const availableSpots = selectedTeam ? selectedTeam.maxMembers - selectedTeam.members.length : 0;
-  const teamJoinRequests = joinRequests.filter(r => r.teamId === selectedTeamId);
-  const teamPendingInvitations = pendingInvitations.filter(p => p.teamId === selectedTeamId);
-
-  const tagSuggestions = [
-    'AI', 'ML', 'Web Dev', 'Mobile', 'Backend', 'Frontend', 'Full Stack',
-    'DevOps', 'Cloud', 'Blockchain', 'Data Science', 'UX/UI', 'React',
-    'Node.js', 'Python', 'Java', 'Go', 'Rust', 'Accessibility', 'Hackathon'
-  ];
-
-  const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-green-500', 'bg-yellow-500', 'bg-red-500', 'bg-indigo-500', 'bg-cyan-500'];
-
-  const handleCreateTeam = () => {
-    if (newTeamData.name && newTeamData.description) {
-      const newTeam: Team = {
-        id: String(Date.now()),
-        name: newTeamData.name,
-        description: newTeamData.description,
-        tags: newTeamData.tags,
-        members: [],
-        maxMembers: newTeamData.maxMembers,
-        inviteLink: `https://scout.app/invite/${Math.random().toString(36).substr(2, 9)}`,
-        isPublic: newTeamData.isPublic,
-        createdAt: new Date().toISOString().split('T')[0],
-        chatId: `chat_${Date.now()}`
-      };
-      setTeams([...teams, newTeam]);
-
-      const newChatGroup: ChatGroup = {
-        id: newTeam.chatId!,
-        teamId: newTeam.id,
-        teamName: newTeam.name,
-        members: 0,
-        lastMessage: 'Team created',
-        lastMessageTime: 'now'
-      };
-      setChatGroups([...chatGroups, newChatGroup]);
-
-      setSelectedTeamId(newTeam.id);
-      setNewTeamData({ name: '', description: '', tags: [], maxMembers: 5, isPublic: true });
-      setShowCreateTeam(false);
+  React.useEffect(() => {
+    const stored = localStorage.getItem('scout_join_requests');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.length > 0) setJoinRequests(parsed);
     }
-  };
+  }, []);
 
-  const handleUpdateTeam = () => {
-    if (newTeamData.name && newTeamData.description && selectedTeam) {
-      setTeams(teams.map(t =>
-        t.id === selectedTeamId
-          ? { ...t, ...newTeamData }
-          : t
-      ));
-      setShowEditTeam(false);
-    }
-  };
-
-  const handleAddTag = (tag: string) => {
-    if (!newTeamData.tags.includes(tag)) {
-      setNewTeamData({
-        ...newTeamData,
-        tags: [...newTeamData.tags, tag]
-      });
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setNewTeamData({
-      ...newTeamData,
-      tags: newTeamData.tags.filter(t => t !== tag)
+  const safeSetJoinRequests = (fn: (prev: JoinRequest[]) => JoinRequest[]) => {
+    setJoinRequests((prev: JoinRequest[]) => {
+      const next = fn(prev);
+      localStorage.setItem('scout_join_requests', JSON.stringify(next));
+      return next;
     });
   };
 
-  const handleAddTagManually = () => {
-    if (tagInput.trim() && !newTeamData.tags.includes(tagInput.trim())) {
-      setNewTeamData({
-        ...newTeamData,
-        tags: [...newTeamData.tags, tagInput.trim()]
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: 'm1', sender: 'John D.', text: 'Frontend scaffolding is 80% done!', time: '10:32 AM', isMine: false, type: 'text' },
+    { id: 'm2', sender: 'You', text: "Excellent. Let's sync tomorrow.", time: '10:35 AM', isMine: true, type: 'text' },
+    { id: 'm3', sender: 'Sarah C.', text: 'ML model hitting 94% accuracy 🚀', time: '10:40 AM', isMine: false, type: 'text' },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [showEmoji, setShowEmoji] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+
+  const [searchPeople, setSearchPeople] = useState('');
+  
+  /* ── Add People filters ── */
+  const [showFilterBar, setShowFilterBar] = useState(false);
+  const [fLocation,  setFLocation]  = useState('');
+  const [fGender,    setFGender]    = useState<string[]>([]);
+  const [fRole,      setFRole]      = useState<string[]>([]);
+  const [fSkills,    setFSkills]    = useState<string[]>([]);
+  const [fExp,       setFExp]       = useState<string[]>([]);
+  const [fAvail,     setFAvail]     = useState<string[]>([]);
+  const [fGithub,    setFGithub]    = useState<string[]>([]);
+  const [skillSearch,setSkillSearch]= useState('');
+
+  interface Chip { key: string; label: string; value: string; }
+  const activeChips: Chip[] = [
+    ...(fLocation ? [{ key:'loc', label:`📍 ${fLocation}`, value:fLocation }] : []),
+    ...fGender.map(g  => ({ key:'gender', label:g,         value:g })),
+    ...fRole.map(r    => ({ key:'role',   label:r,         value:r })),
+    ...fSkills.map(s  => ({ key:'skill',  label:s,         value:s })),
+    ...fExp.map(e     => ({ key:'exp',    label:e,         value:e })),
+    ...fAvail.map(a   => ({ key:'avail',  label:a,         value:a })),
+    ...fGithub.map(g  => ({ key:'gh',     label:`⚡ ${g}`,  value:g })),
+  ];
+
+  const removeChip = (c: Chip) => {
+    if (c.key==='loc')    setFLocation('');
+    if (c.key==='gender') setFGender(p => p.filter(v=>v!==c.value));
+    if (c.key==='role')   setFRole(p   => p.filter(v=>v!==c.value));
+    if (c.key==='skill')  setFSkills(p => p.filter(v=>v!==c.value));
+    if (c.key==='exp')    setFExp(p    => p.filter(v=>v!==c.value));
+    if (c.key==='avail')  setFAvail(p  => p.filter(v=>v!==c.value));
+    if (c.key==='gh')     setFGithub(p => p.filter(v=>v!==c.value));
+  };
+
+  const clearAllFilters = () => {
+    setFLocation('');setFGender([]);setFRole([]);setFSkills([]);
+    setFExp([]);setFAvail([]);setFGithub([]);setSearchPeople('');
+  };
+
+  const tog = <T,>(arr: T[], val: T): T[] =>
+    arr.includes(val) ? arr.filter(v=>v!==val) : [...arr, val];
+
+  const SKILL_OPTIONS = ['React','TypeScript','Python','Node.js','AI','ML','Figma','Solidity','Go','Rust','Flutter','Docker','Kubernetes','PostgreSQL','MongoDB','GraphQL','TensorFlow','PyTorch','Next.js','AWS','DataScience','SQL','CSS','Web3'];
+  const parseCommits = (s: string) => parseInt(s) || 0;
+
+  const [editTeam, setEditTeam] = useState<Team | null>(null);
+
+  const selectedTeam = teams.find(t => t.id === selectedTeamId) || teams[0];
+  const isOwner = selectedTeam.ownerId === ME_ID;
+
+  // ---- Handlers ----
+  const removeInvite = (id: string) => setPendingInvitations(prev => prev.filter(i => i.id !== id));
+
+  const acceptRequest = (req: JoinRequest) => {
+    const newMember: TeamMember = { id: req.id, name: req.name, initials: req.initials, color: req.color, role: req.role, skills: req.skills };
+    setTeams(prev => prev.map(t => t.id === selectedTeamId ? { ...t, members: [...t.members, newMember] } : t));
+    safeSetJoinRequests(prev => prev.filter(r => r.id !== req.id));
+  };
+  const declineRequest = (id: string) => safeSetJoinRequests(prev => prev.filter(r => r.id !== id));
+
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<TeamMember | null>(null);
+  const [selectedMemberProfile, setSelectedMemberProfile] = useState<TeamMember | null>(null);
+
+  const removeMember = (memberId: string) => {
+    setTeams(prev => prev.map(t => t.id === selectedTeamId ? { ...t, members: t.members.filter(m => m.id !== memberId) } : t));
+    setConfirmRemoveMember(null);
+  };
+
+  const sendMessage = () => {
+    if (!chatInput.trim()) return;
+    setMessages(prev => [...prev, { id: String(Date.now()), sender: 'You', text: chatInput, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMine: true, type: 'text' }]);
+    setChatInput('');
+  };
+
+  const handleCreateTeam = () => {
+    if (!newTeamData.name || !newTeamData.description) return;
+    const t: Team = {
+      id: String(Date.now()), ...newTeamData,
+      members: [{ id: ME_ID, name: 'You', initials: 'ME', color: 'bg-[#C4AAF1]/20 text-[#C4AAF1]', role: 'Owner', skills: [] }],
+      inviteLink: `https://scout.app/invite/${Math.random().toString(36).substr(2, 8)}`,
+      createdAt: new Date().toISOString().split('T')[0], ownerId: ME_ID
+    };
+    setTeams(prev => [...prev, t]);
+    setSelectedTeamId(t.id);
+    setShowCreateTeam(false);
+    setNewTeamData({ name: '', description: '', tags: [], maxMembers: 5, isPublic: true, image: null });
+    if (t.isPublic) setShowShareFeedModal(true);
+  };
+
+  const handleAddTag = (tag: string) => {
+    const t = tag.trim();
+    if (t && !newTeamData.tags.includes(t)) setNewTeamData(p => ({ ...p, tags: [...p.tags, t] }));
+    setTagInput('');
+  };
+
+  const saveTeamSettings = () => {
+    if (!editTeam) return;
+    setTeams(prev => prev.map(t => t.id === editTeam.id ? editTeam : t));
+    setShowSettingsModal(false);
+  };
+
+  const handleAddTask = () => {
+    if (!newTaskTitle.trim()) return;
+    setTasks(prev => [...prev, { id: String(Date.now()), title: newTaskTitle.trim(), status: 'To Do', teamId: selectedTeamId }]);
+    setNewTaskTitle('');
+  };
+
+  const filteredPeople = SUGGESTED_PEOPLE.filter(p => {
+    if (selectedTeam.members.find(m => m.id === p.id)) return false;
+    
+    const pData = [
+      p.name, p.role, p.location, p.bio, p.experience, p.availability, 
+      ...p.skills, ...(p.keywords || [])
+    ].map(x => (x || '').toLowerCase());
+    
+    const q = searchPeople.toLowerCase().trim();
+    const searchMatch = !q || pData.some(val => val.includes(q));
+    if (!searchMatch) return false;
+
+    // Active Hard Filters
+    if (fLocation && !p.location.toLowerCase().includes(fLocation.toLowerCase())) return false;
+    if (fGender.length > 0 && !fGender.includes(p.gender)) return false;
+    if (fRole.length > 0 && !fRole.some(r => p.role.toLowerCase().includes(r.toLowerCase()))) return false;
+    if (fExp.length > 0 && !fExp.includes(p.experience)) return false;
+    if (fAvail.length > 0 && !fAvail.includes(p.availability)) return false;
+    if (fSkills.length > 0 && !fSkills.every(s => p.skills.includes(s))) return false;
+    if (fGithub.includes('30+ commits/mo') && parseCommits(p.gitActivity) < 30) return false;
+    if (fGithub.includes('60+ commits/mo') && parseCommits(p.gitActivity) < 60) return false;
+
+    const teamTags = selectedTeam.tags.map(t => t.toLowerCase().trim()).filter(Boolean);
+    const tagMatch = teamTags.length === 0 || teamTags.some(tag => 
+      pData.some(val => val.includes(tag) || tag.includes(val))
+    );
+    
+    return tagMatch;
+  }).sort((a, b) => {
+    const getScore = (p: typeof SUGGESTED_PEOPLE[0]) => {
+      const teamTags = selectedTeam.tags.map(t => t.toLowerCase().trim()).filter(Boolean);
+      const pData = [p.name, p.role, p.location, p.bio, p.experience, p.availability, ...p.skills, ...(p.keywords || [])].map(x => (x || '').toLowerCase());
+      let score = 0;
+      teamTags.forEach(tag => {
+        if (pData.some(val => val.includes(tag) || tag.includes(val))) score++;
       });
-      setTagInput('');
-    }
-  };
+      return score;
+    };
+    return getScore(b) - getScore(a);
+  });
 
-  const handleAddMember = () => {
-    if (addMemberEmail && selectedTeam && availableSpots > 0) {
-      const initials = addMemberEmail.substring(0, 2).toUpperCase();
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  const emojis = ['😀', '🚀', '🔥', '👍', '💡', '✅', '🎯', '💪', '🤝', '🎉'];
 
-      const newMember: TeamMember = {
-        id: String(selectedTeam.members.length + 1),
-        name: addMemberEmail.split('@')[0],
-        initials,
-        color: randomColor,
-        role: addMemberRole,
-        skills: []
-      };
-
-      setTeams(teams.map(t =>
-        t.id === selectedTeamId
-          ? { ...t, members: [...t.members, newMember] }
-          : t
-      ));
-
-      setChatGroups(chatGroups.map(cg =>
-        cg.teamId === selectedTeamId
-          ? { ...cg, members: cg.members + 1 }
-          : cg
-      ));
-
-      setAddMemberEmail('');
-      setAddMemberRole('Member');
-      setShowAddMembersModal(false);
-    }
-  };
-
-  const handleInviteMember = () => {
-    if (inviteEmail && selectedTeam) {
-      const newInvitation: PendingInvitation = {
-        id: String(pendingInvitations.length + 1),
-        name: inviteEmail.split('@')[0],
-        email: inviteEmail,
-        initials: inviteEmail.substring(0, 2).toUpperCase(),
-        color: colors[Math.floor(Math.random() * colors.length)],
-        status: 'pending',
-        teamId: selectedTeamId
-      };
-      setPendingInvitations([...pendingInvitations, newInvitation]);
-      setInviteEmail('');
-    }
-  };
-
-  const handleCopyInviteLink = (link: string) => {
-    navigator.clipboard.writeText(link);
-    setCopiedLinkId(link);
-    setTimeout(() => setCopiedLinkId(null), 2000);
-  };
-
-  const handleAcceptJoinRequest = (id: string) => {
-    const request = joinRequests.find(r => r.id === id);
-    if (request && selectedTeam && availableSpots > 0) {
-      const newMember: TeamMember = {
-        id: request.id,
-        name: request.name,
-        initials: request.initials,
-        color: request.color,
-        role: request.role,
-        skills: request.skills
-      };
-      setTeams(teams.map(t =>
-        t.id === selectedTeamId
-          ? { ...t, members: [...t.members, newMember] }
-          : t
-      ));
-
-      setChatGroups(chatGroups.map(cg =>
-        cg.teamId === selectedTeamId
-          ? { ...cg, members: cg.members + 1 }
-          : cg
-      ));
-
-      setJoinRequests(joinRequests.filter(r => r.id !== id));
-    }
-  };
-
-  const handleRemoveMember = (memberId: string) => {
-    setTeams(teams.map(t =>
-      t.id === selectedTeamId
-        ? { ...t, members: t.members.filter(m => m.id !== memberId) }
-        : t
-    ));
-
-    setChatGroups(chatGroups.map(cg =>
-      cg.teamId === selectedTeamId
-        ? { ...cg, members: Math.max(0, cg.members - 1) }
-        : cg
-    ));
-  };
-
-  const openEditTeam = () => {
-    if (selectedTeam) {
-      setNewTeamData({
-        name: selectedTeam.name,
-        description: selectedTeam.description,
-        tags: [...selectedTeam.tags],
-        maxMembers: selectedTeam.maxMembers,
-        isPublic: selectedTeam.isPublic
-      });
-      setShowEditTeam(true);
-    }
-  };
+  const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C4AAF1] transition-all placeholder-gray-600';
+  const btn = 'bg-[#C4AAF1] hover:bg-[#d4bef8] text-[#1C1C2A] font-bold rounded-xl transition-all';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1C1C2A] via-[#1C1C2A] to-[#2A2A3A]">
-      {/* Background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-20 -left-40 w-80 h-80 bg-[#C4AAF1] rounded-full mix-blend-multiply filter blur-3xl opacity-10"></div>
-        <div className="absolute top-40 right-10 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-5"></div>
-      </div>
-
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="sticky top-0 bg-[#1C1C2A]/80 backdrop-blur-xl border-b border-white/5 z-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#C4AAF1] to-purple-600 flex items-center justify-center">
-                <Users className="text-white" size={20} />
-              </div>
-              <h1 className="text-2xl font-bold text-white">Teams</h1>
-            </div>
-            <button
-              onClick={() => {
-                setNewTeamData({ name: '', description: '', tags: [], maxMembers: 5, isPublic: true });
-                setShowCreateTeam(true);
-              }}
-              className="px-6 py-2.5 rounded-lg bg-[#C4AAF1] text-[#1C1C2A] font-semibold hover:bg-[#C4AAF1]/90 transition-colors flex items-center gap-2"
-            >
-              <Plus size={18} /> Create Team
-            </button>
+    <div className="min-h-screen text-white font-sans p-4 lg:p-8" style={{ backgroundColor: BG }}>
+      {/* Toast Notification */}
+      {justInvited && (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 px-5 py-3.5 rounded-2xl border border-[#C4AAF1]/30 shadow-2xl" style={{ backgroundColor: SURF }}>
+          <div className="w-7 h-7 rounded-full bg-[#C4AAF1]/20 border border-[#C4AAF1]/30 flex items-center justify-center">
+            <Check size={14} className="text-[#C4AAF1]" />
           </div>
+          <span className="text-sm font-bold">Request sent to {justInvited}</span>
+        </div>
+      )}
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-1">Your Teams</h1>
+            <p className="text-gray-500 text-sm">Manage and collaborate with your teams.</p>
+          </div>
+          <button onClick={() => setShowCreateTeam(true)} className={`${btn} py-2.5 px-5 flex items-center gap-2 text-sm`}>
+            <Plus size={16} /> Create Team
+          </button>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Create Team Modal */}
-          {showCreateTeam && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-[#1C1C2A] border border-white/30 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-3xl font-bold text-white">Create New Team</h2>
-                  <button onClick={() => setShowCreateTeam(false)} className="text-gray-400 hover:text-white transition-colors">
-                    <X size={24} />
-                  </button>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
-                <div className="space-y-6 mb-8">
-                  {/* Team Name */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Team Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Neural Ninjas"
-                      value={newTeamData.name}
-                      onChange={(e) => setNewTeamData({ ...newTeamData, name: e.target.value })}
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3.5 px-4 text-white placeholder-white/30 text-base focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                    />
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-3">
+            {teams.map(team => (
+              <div key={team.id} onClick={() => { setSelectedTeamId(team.id); setActiveTab('overview'); }}
+                className={`p-4 rounded-2xl cursor-pointer transition-all border-2 ${selectedTeamId === team.id ? 'border-[#C4AAF1] bg-[#C4AAF1]/5' : 'border-transparent hover:border-white/10'}`}
+                style={{ backgroundColor: selectedTeamId === team.id ? undefined : SURF }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: 'rgba(196,170,241,0.1)' }}>
+                    {team.image ? <img src={team.image} alt="" className="w-full h-full object-cover"/> : <Users size={20} className="text-[#C4AAF1]" />}
                   </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Description</label>
-                    <textarea
-                      placeholder="Passionate developers working on deep learning models, smart assistants, and next-gen data-driven platforms."
-                      value={newTeamData.description}
-                      onChange={(e) => setNewTeamData({ ...newTeamData, description: e.target.value })}
-                      rows={4}
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3.5 px-4 text-white placeholder-white/30 text-base focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* Tags */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Tags</label>
-
-                    {/* Manual Tag Input */}
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        placeholder="Add custom tag"
-                        className="flex-1 bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddTagManually()}
-                      />
-                      <button
-                        onClick={handleAddTagManually}
-                        className="px-4 py-3 rounded-xl bg-[#C4AAF1]/20 border border-[#C4AAF1]/40 text-[#C4AAF1] text-sm font-semibold hover:bg-[#C4AAF1]/30 transition-all"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </div>
-
-                    {/* Selected Tags */}
-                    {newTeamData.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
-                        {newTeamData.tags.map(tag => (
-                          <span key={tag} className="px-3 py-1.5 rounded-lg bg-[#C4AAF1] text-[#1C1C2A] text-xs font-bold flex items-center gap-2">
-                            {tag}
-                            <button onClick={() => handleRemoveTag(tag)} className="hover:opacity-70">×</button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Tag Suggestions */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {tagSuggestions
-                        .filter(t => !newTeamData.tags.includes(t))
-                        .slice(0, 9)
-                        .map(tag => (
-                          <button
-                            key={tag}
-                            onClick={() => handleAddTag(tag)}
-                            className="px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white/60 text-xs font-medium hover:border-[#C4AAF1] hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/10 transition-all"
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Max Members & Visibility */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-sm text-white/70 font-semibold block mb-3">Team Size</label>
-                      <input
-                        type="number"
-                        value={newTeamData.maxMembers}
-                        onChange={(e) => setNewTeamData({ ...newTeamData, maxMembers: parseInt(e.target.value) || 5 })}
-                        className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-white/70 font-semibold block mb-3">Visibility</label>
-                      <select
-                        value={newTeamData.isPublic ? 'public' : 'private'}
-                        onChange={(e) => setNewTeamData({ ...newTeamData, isPublic: e.target.value === 'public' })}
-                        className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                      >
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm truncate">{team.name}</h3>
+                    <p className="text-gray-500 text-xs">{team.members.length}/{team.maxMembers} members</p>
                   </div>
                 </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowCreateTeam(false)}
-                    className="flex-1 px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreateTeam}
-                    className="flex-1 px-6 py-3 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] hover:bg-[#C4AAF1]/90 transition-colors font-semibold"
-                  >
-                    Create Team
-                  </button>
+                {/* Owner badge + Tags in sidebar */}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {team.ownerId === ME_ID && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 flex items-center gap-0.5">★ Owner</span>
+                  )}
+                  {team.tags.slice(0, 3).map(tag => (
+                    <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full font-bold text-[#C4AAF1] bg-[#C4AAF1]/10 border border-[#C4AAF1]/20">{tag}</span>
+                  ))}
                 </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
 
-          {/* Edit Team Modal */}
-          {showEditTeam && selectedTeam && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-[#1C1C2A] border border-white/30 rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-3xl font-bold text-white">Edit Team</h2>
-                  <button onClick={() => setShowEditTeam(false)} className="text-gray-400 hover:text-white transition-colors">
-                    <X size={24} />
-                  </button>
-                </div>
+          {/* Main Panel */}
+          <div className="lg:col-span-3 rounded-3xl border border-white/5 overflow-hidden" style={{ backgroundColor: SURF }}>
 
-                <div className="space-y-6 mb-8">
-                  {/* Team Name */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Team Name</label>
-                    <input
-                      type="text"
-                      value={newTeamData.name}
-                      onChange={(e) => setNewTeamData({ ...newTeamData, name: e.target.value })}
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3.5 px-4 text-white placeholder-white/30 text-base focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Description</label>
-                    <textarea
-                      value={newTeamData.description}
-                      onChange={(e) => setNewTeamData({ ...newTeamData, description: e.target.value })}
-                      rows={4}
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3.5 px-4 text-white placeholder-white/30 text-base focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* Tags */}
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Tags</label>
-
-                    {/* Manual Tag Input */}
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        placeholder="Add custom tag"
-                        className="flex-1 bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddTagManually()}
-                      />
-                      <button
-                        onClick={handleAddTagManually}
-                        className="px-4 py-3 rounded-xl bg-[#C4AAF1]/20 border border-[#C4AAF1]/40 text-[#C4AAF1] text-sm font-semibold hover:bg-[#C4AAF1]/30 transition-all"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </div>
-
-                    {/* Selected Tags */}
-                    {newTeamData.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white/5 rounded-lg border border-white/10">
-                        {newTeamData.tags.map(tag => (
-                          <span key={tag} className="px-3 py-1.5 rounded-lg bg-[#C4AAF1] text-[#1C1C2A] text-xs font-bold flex items-center gap-2">
-                            {tag}
-                            <button onClick={() => handleRemoveTag(tag)} className="hover:opacity-70">×</button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Tag Suggestions */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {tagSuggestions
-                        .filter(t => !newTeamData.tags.includes(t))
-                        .slice(0, 9)
-                        .map(tag => (
-                          <button
-                            key={tag}
-                            onClick={() => handleAddTag(tag)}
-                            className="px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white/60 text-xs font-medium hover:border-[#C4AAF1] hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/10 transition-all"
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Max Members & Visibility */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-sm text-white/70 font-semibold block mb-3">Team Size</label>
-                      <input
-                        type="number"
-                        value={newTeamData.maxMembers}
-                        onChange={(e) => setNewTeamData({ ...newTeamData, maxMembers: parseInt(e.target.value) || 5 })}
-                        className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-white/70 font-semibold block mb-3">Visibility</label>
-                      <select
-                        value={newTeamData.isPublic ? 'public' : 'private'}
-                        onChange={(e) => setNewTeamData({ ...newTeamData, isPublic: e.target.value === 'public' })}
-                        className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                      >
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowEditTeam(false)}
-                    className="flex-1 px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleUpdateTeam}
-                    className="flex-1 px-6 py-3 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] hover:bg-[#C4AAF1]/90 transition-colors font-semibold"
-                  >
-                    Update Team
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add Members Modal */}
-          {showAddMembersModal && selectedTeam && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-[#1C1C2A] border border-white/30 rounded-3xl p-8 max-w-md w-full shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">Add Member</h2>
-                  <button onClick={() => setShowAddMembersModal(false)} className="text-gray-400 hover:text-white">
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                  <p className="text-sm text-gray-400">
-                    Available spots: <span className="text-[#C4AAF1] font-bold">{availableSpots}/{selectedTeam.maxMembers}</span>
-                  </p>
-
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Email Address</label>
-                    <input
-                      type="email"
-                      value={addMemberEmail}
-                      onChange={(e) => setAddMemberEmail(e.target.value)}
-                      placeholder="member@example.com"
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Role</label>
-                    <select
-                      value={addMemberRole}
-                      onChange={(e) => setAddMemberRole(e.target.value)}
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                    >
-                      <option>Member</option>
-                      <option>Frontend Developer</option>
-                      <option>Backend Developer</option>
-                      <option>Full Stack Developer</option>
-                      <option>Designer</option>
-                      <option>DevOps</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowAddMembersModal(false)}
-                    className="flex-1 px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddMember}
-                    disabled={!addMemberEmail || availableSpots === 0}
-                    className="flex-1 px-6 py-3 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] hover:bg-[#C4AAF1]/90 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors font-semibold"
-                  >
-                    Add Member
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Invite Members Modal */}
-          {showInviteMembersModal && selectedTeam && (
-            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-[#1C1C2A] border border-white/30 rounded-3xl p-8 max-w-md w-full shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white">Invite Member</h2>
-                  <button onClick={() => setShowInviteMembersModal(false)} className="text-gray-400 hover:text-white">
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="text-sm text-white/70 font-semibold block mb-3">Email Address</label>
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="member@example.com"
-                      className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-white/30 text-sm focus:outline-none focus:border-[#C4AAF1] focus:bg-white/10 transition-all"
-                    />
-                  </div>
-
-                  <div className="border-t border-white/10 pt-4">
-                    <p className="text-xs text-white/50 font-semibold mb-3">Share Invite Link</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={selectedTeam.inviteLink}
-                        readOnly
-                        className="flex-1 bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white text-sm focus:outline-none"
-                      />
-                      <button
-                        onClick={() => handleCopyInviteLink(selectedTeam.inviteLink)}
-                        className="p-3 rounded-xl bg-white/5 border border-white/20 text-gray-400 hover:text-[#C4AAF1] hover:border-[#C4AAF1]/40 transition-all"
-                      >
-                        {copiedLinkId === selectedTeam.inviteLink ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-                      </button>
-                      <button className="p-3 rounded-xl bg-white/5 border border-white/20 text-gray-400 hover:text-[#C4AAF1] hover:border-[#C4AAF1]/40 transition-all">
-                        <Share2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowInviteMembersModal(false)}
-                    className="flex-1 px-6 py-3 rounded-xl border border-white/20 text-white hover:bg-white/5 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleInviteMember}
-                    disabled={!inviteEmail}
-                    className="flex-1 px-6 py-3 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] hover:bg-[#C4AAF1]/90 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors font-semibold"
-                  >
-                    Invite
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Main Layout - 2 Columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Teams List */}
-            <div className="lg:col-span-2 space-y-4">
-              {teams.map(team => (
-                <button
-                  key={team.id}
-                  onClick={() => setSelectedTeamId(team.id)}
-                  className={`w-full text-left border rounded-2xl p-4 transition-all ${
-                    selectedTeamId === team.id
-                      ? 'bg-white/15 border-white/30'
-                      : 'bg-white/8 border-white/15 hover:bg-white/12 hover:border-white/25'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1">
-                      <h3 className="text-base font-bold text-white">{team.name}</h3>
-                      <p className="text-gray-400 text-xs line-clamp-1">{team.description}</p>
-                    </div>
-                    <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 bg-blue-500/20 text-blue-300">
-                      {team.members.length}/{team.maxMembers}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {team.tags.slice(0, 2).map(tag => (
-                      <span key={tag} className="px-2 py-0.5 rounded text-xs font-semibold bg-[#C4AAF1]/20 text-[#C4AAF1]">
-                        {tag}
-                      </span>
+            {/* Team Header */}
+            <div className="p-6 border-b border-white/5">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-bold mb-1">{selectedTeam.name}</h2>
+                  <p className="text-gray-400 text-sm mb-2">{selectedTeam.description}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTeam.tags.map(tag => (
+                      <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-bold text-[#C4AAF1] bg-[#C4AAF1]/10 border border-[#C4AAF1]/20">{tag}</span>
                     ))}
-                    {team.tags.length > 2 && (
-                      <span className="px-2 py-0.5 rounded text-xs font-semibold text-gray-400">
-                        +{team.tags.length - 2}
-                      </span>
-                    )}
                   </div>
-                </button>
-              ))}
+                </div>
+                {isOwner && (
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowAddPeopleModal(true); }} className="p-2.5 rounded-xl text-gray-400 hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/10 transition-all" title="Add People">
+                      <UserPlus size={20} />
+                    </button>
+                    <button onClick={() => { setEditTeam({ ...selectedTeam }); setShowSettingsModal(true); }} className="p-2.5 rounded-xl text-gray-400 hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/10 transition-all" title="Team Settings">
+                      <Settings size={20} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Right Column - Team Details & Join Requests */}
-            <div className="space-y-6">
-              {selectedTeam ? (
-                <>
-                  {/* Team Details Card */}
-                  <div className="bg-white/15 border border-white/30 rounded-2xl p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-lg font-bold text-white">{selectedTeam.name}</h3>
-                      <button
-                        onClick={openEditTeam}
-                        className="p-2 rounded-lg bg-white/5 border border-white/20 text-gray-400 hover:text-[#C4AAF1] hover:border-[#C4AAF1]/40 transition-all"
-                        title="Edit Team"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                    </div>
+            {/* Tabs */}
+            <div className="flex gap-1 px-6 pt-4 pb-0 border-b border-white/5 overflow-x-auto">
+              {(['overview', 'tasks', 'chat', 'meetings', 'requests'] as const).map(tab => {
+                if (tab === 'requests' && !isOwner) return null;
+                return (
+                  <button key={tab} onClick={() => setActiveTab(tab)}
+                    className={`px-5 py-2.5 rounded-t-xl text-sm font-bold capitalize transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white/5 text-[#C4AAF1] border-b-2 border-[#C4AAF1]' : 'text-gray-500 hover:text-gray-300'}`}>
+                    {tab === 'requests' ? 'Join Requests' : tab}
+                  </button>
+                );
+              })}
+            </div>
 
-                    {/* Members Section */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold text-white/70">MEMBERS</p>
-                        {selectedTeam.members.length < selectedTeam.maxMembers && (
-                          <button
-                            onClick={() => setShowAddMembersModal(true)}
-                            className="p-1.5 rounded-lg bg-[#C4AAF1]/20 border border-[#C4AAF1]/40 text-[#C4AAF1] hover:bg-[#C4AAF1]/30 transition-all"
-                            title="Add Member"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        )}
+            {/* Tab Content */}
+            <div className="p-6">
+
+              {/* OVERVIEW */}
+              {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Left */}
+                  <div className="space-y-8">
+                    {/* Members */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold flex items-center gap-2"><Users size={18} className="text-[#C4AAF1]" /> Members ({selectedTeam.members.length}/{selectedTeam.maxMembers})</h4>
                       </div>
                       <div className="space-y-2">
                         {selectedTeam.members.map(member => (
-                          <div key={member.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <div className={`w-8 h-8 rounded-full ${member.color} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                                {member.initials}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-white font-semibold text-xs truncate">{member.name}</p>
+                          <div
+                            key={member.id}
+                            className="flex items-center justify-between p-3 rounded-xl border border-white/5 hover:bg-white/5 hover:border-[#C4AAF1]/20 transition-all cursor-pointer"
+                            style={{ backgroundColor: CARD }}
+                            onClick={() => setSelectedMemberProfile(member)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${member.color}`}>{member.initials}</div>
+                              <div>
+                                <p className="font-bold text-sm">{member.name}{member.leader && <span className="ml-2 text-[10px] text-[#C4AAF1] bg-[#C4AAF1]/10 px-1.5 py-0.5 rounded-full">Owner</span>}</p>
                                 <p className="text-gray-500 text-xs">{member.role}</p>
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleRemoveMember(member.id)}
-                              className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
-                            >
-                              <X size={14} />
-                            </button>
+                            {isOwner && member.id !== ME_ID && (
+                              <button onClick={e => { e.stopPropagation(); setConfirmRemoveMember(member); }} className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Remove member"><X size={14} /></button>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Invite Section */}
-                    <button
-                      onClick={() => setShowInviteMembersModal(true)}
-                      className="w-full py-2.5 rounded-lg bg-[#C4AAF1]/20 border border-[#C4AAF1]/40 text-[#C4AAF1] text-sm font-semibold hover:bg-[#C4AAF1]/30 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Mail size={14} /> Invite
-                    </button>
+                    {/* Pending Invitations - only for owner */}
+                    {isOwner && (
+                      <div>
+                        <h4 className="font-bold text-sm mb-3 text-gray-300">Pending Invitations</h4>
+                        <div className="space-y-2">
+                          {pendingInvitations.filter(i => i.teamId === selectedTeamId).length === 0
+                            ? <p className="text-gray-600 text-xs">No pending invitations.</p>
+                            : pendingInvitations.filter(i => i.teamId === selectedTeamId).map(inv => (
+                              <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5" style={{ backgroundColor: CARD }}>
+                                <Link href={`/profile/${inv.id}`} className="flex items-center gap-3 group transition-all">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${inv.color}`}>{inv.initials}</div>
+                                  <div>
+                                    <p className="font-bold text-sm group-hover:text-[#C4AAF1] transition-colors">{inv.name}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">{inv.role}</span>
+                                      {inv.skills.slice(0, 2).map(skill => (
+                                        <span key={skill} className="text-[10px] px-1.5 py-0.5 rounded bg-[#C4AAF1]/10 text-[#C4AAF1]">#{skill}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </Link>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${inv.daysAgo > 7 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                                    {inv.daysAgo === 0 ? 'Just now' : `${inv.daysAgo}d ago`}
+                                  </span>
+                                  <button onClick={() => removeInvite(inv.id)} className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Cancel invite">
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Pending Invitations */}
-                  {teamPendingInvitations.length > 0 && (
-                    <div className="bg-white/15 border border-white/30 rounded-2xl p-6">
-                      <h4 className="text-sm font-bold text-white mb-3">Pending ({teamPendingInvitations.length})</h4>
+                  {/* Right */}
+                  <div className="space-y-8">
+                    {/* Quick Actions */}
+                    <div>
+                      <h4 className="font-bold text-sm mb-3 text-gray-300">Quick Actions</h4>
                       <div className="space-y-2">
-                        {teamPendingInvitations.map(invitation => (
-                          <div key={invitation.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <div className={`w-8 h-8 rounded-full ${invitation.color} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                                {invitation.initials}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-white font-semibold text-xs truncate">{invitation.name}</p>
-                                <p className="text-gray-500 text-xs">Invited</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => setPendingInvitations(pendingInvitations.filter(inv => inv.id !== invitation.id))}
-                              className="text-gray-400 hover:text-red-400 transition-colors flex-shrink-0"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
+                        <button onClick={() => setActiveTab('chat')} className="w-full flex items-center justify-between p-3 rounded-xl border border-white/5 hover:border-[#C4AAF1]/30 hover:bg-white/5 transition-all">
+                          <div className="flex items-center gap-3"><MessageSquare size={18} className="text-[#C4AAF1]" /><span className="font-bold text-sm">Open Team Chat</span></div>
+                          <span className="bg-[#C4AAF1] text-[#1C1C2A] text-xs font-black px-2 py-0.5 rounded-full">3</span>
+                        </button>
+                        <button onClick={() => setActiveTab('meetings')} className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-[#C4AAF1]/30 hover:bg-white/5 transition-all">
+                          <Video size={18} className="text-[#C4AAF1]" /><span className="font-bold text-sm">Start Video Call</span>
+                        </button>
+                        <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-[#C4AAF1]/30 hover:bg-white/5 transition-all">
+                          <Calendar size={18} className="text-[#C4AAF1]" /><span className="font-bold text-sm">Schedule Meeting</span>
+                        </button>
+                        <button onClick={() => setActiveTab('tasks')} className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-[#C4AAF1]/30 hover:bg-white/5 transition-all">
+                          <ListTodo size={18} className="text-[#C4AAF1]" /><span className="font-bold text-sm">View All Tasks</span>
+                        </button>
                       </div>
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="bg-white/15 border border-white/30 rounded-2xl p-6 text-center">
-                  <AlertCircle size={32} className="text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-400">Select a team to view details</p>
+
+                    {/* Member view - if not owner, show team info */}
+                    {!isOwner && (
+                      <div className="p-4 rounded-xl border border-[#C4AAF1]/20 bg-[#C4AAF1]/5">
+                        <p className="text-[#C4AAF1] text-sm font-bold mb-1">You are a member</p>
+                        <p className="text-gray-400 text-xs">Created by the team owner. Use the Quick Actions above to collaborate with your team.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Join Requests Card - Always Visible */}
-              {teamJoinRequests.length > 0 && (
-                <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border border-orange-500/30 rounded-2xl p-6">
-                  <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                    <AlertCircle size={16} className="text-orange-400" /> Join Requests ({teamJoinRequests.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {teamJoinRequests.map(request => (
-                      <div key={request.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                        <div className="flex items-start gap-3 mb-2">
-                          <div className={`w-9 h-9 rounded-full ${request.color} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                            {request.initials}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-sm">{request.name}</p>
-                            <p className="text-gray-400 text-xs">{request.role}</p>
-                          </div>
+              {/* TASKS */}
+              {activeTab === 'tasks' && (
+                <div className="max-w-xl space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-lg">Project Tasks</h4>
+                    <span className="text-gray-500 text-xs font-mono">{tasks.filter(t => t.teamId === selectedTeamId).length} tasks</span>
+                  </div>
+                  <div className="space-y-2">
+                    {tasks.filter(t => t.teamId === selectedTeamId).map(task => (
+                      <div key={task.id} className="flex items-center justify-between p-4 rounded-xl border border-white/5 hover:border-[#C4AAF1]/20 transition-all" style={{ backgroundColor: CARD }}>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => {
+                            const s: Task['status'][] = ['To Do', 'In Progress', 'Done'];
+                            const next = s[(s.indexOf(task.status) + 1) % 3];
+                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t));
+                          }} className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${task.status === 'Done' ? 'bg-[#C4AAF1] border-[#C4AAF1]' : 'border-gray-600 hover:border-[#C4AAF1]'}`}>
+                            {task.status === 'Done' && <Check size={12} className="text-[#1C1C2A]" />}
+                          </button>
+                          <span className={`font-semibold text-sm ${task.status === 'Done' ? 'line-through text-gray-600' : ''}`}>{task.title}</span>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleAcceptJoinRequest(request.id)}
-                            className="flex-1 px-3 py-2 rounded-lg bg-[#C4AAF1] text-[#1C1C2A] hover:bg-[#C4AAF1]/90 transition-colors text-xs font-bold flex items-center justify-center gap-1"
-                          >
-                            <Check size={14} /> Accept
-                          </button>
-                          <button
-                            onClick={() => setJoinRequests(joinRequests.filter(r => r.id !== request.id))}
-                            className="flex-1 px-3 py-2 rounded-lg border border-white/20 text-white hover:bg-red-500/10 hover:border-red-500/30 transition-colors text-xs font-bold"
-                          >
-                            Decline
-                          </button>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${task.status === 'Done' ? 'bg-green-500/10 text-green-400' : task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-500/10 text-gray-500'}`}>
+                          {task.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 pt-4 border-t border-white/5">
+                    <input type="text" value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Add a task..." className={inp} onKeyPress={e => e.key === 'Enter' && handleAddTask()} />
+                    <button onClick={handleAddTask} className={`${btn} px-5 text-sm`}>Add</button>
+                  </div>
+                </div>
+              )}
+
+              {/* CHAT */}
+              {activeTab === 'chat' && (
+                <div className="h-[520px] flex flex-col rounded-2xl border border-white/5 overflow-hidden" style={{ backgroundColor: BG }}>
+                  {/* Chat Header */}
+                  <div className="p-4 border-b border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#C4AAF1]/20 flex items-center justify-center text-[#C4AAF1] font-black text-sm">{selectedTeam.name[0]}</div>
+                    <div>
+                      <p className="font-bold text-sm">{selectedTeam.name}</p>
+                      <p className="text-gray-500 text-xs">{selectedTeam.members.length} members</p>
+                    </div>
+                  </div>
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map(msg => (
+                      <div key={msg.id} className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[75%] ${msg.isMine ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                          {!msg.isMine && <p className="text-[#C4AAF1] text-xs font-bold px-2">{msg.sender}</p>}
+                          <div className={`px-4 py-2.5 rounded-2xl text-sm ${msg.isMine ? 'bg-[#C4AAF1] text-[#1C1C2A] rounded-tr-none font-medium' : 'bg-white/5 text-white border border-white/5 rounded-tl-none'}`}>
+                            {msg.type === 'file' ? <span className="flex items-center gap-2"><Paperclip size={14} />{msg.text}</span>
+                              : msg.type === 'image' ? <span className="flex items-center gap-2"><Image size={14} />{msg.text}</span>
+                                : msg.text}
+                          </div>
+                          <p className="text-gray-600 text-[10px] px-2">{msg.time}</p>
                         </div>
                       </div>
                     ))}
                   </div>
+                  {/* Emoji Picker */}
+                  {showEmoji && (
+                    <div className="px-4 py-2 border-t border-white/5 flex gap-2 flex-wrap">
+                      {emojis.map(e => <button key={e} onClick={() => { setChatInput(p => p + e); setShowEmoji(false); }} className="text-xl hover:scale-125 transition-all">{e}</button>)}
+                    </div>
+                  )}
+                  {/* Input Bar */}
+                  <div className="p-4 border-t border-white/5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setShowEmoji(p => !p)} className="p-2 text-gray-500 hover:text-[#C4AAF1] transition-all rounded-lg hover:bg-[#C4AAF1]/10"><Smile size={20} /></button>
+                      <input type="file" ref={fileInputRef} className="hidden" onChange={e => { if (e.target.files?.[0]) { setMessages(p => [...p, { id: String(Date.now()), sender: 'You', text: e.target.files![0].name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMine: true, type: 'file' }]); } }} />
+                      <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-[#C4AAF1] transition-all rounded-lg hover:bg-[#C4AAF1]/10"><Paperclip size={20} /></button>
+                      <input type="file" ref={imgInputRef} accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) { setMessages(p => [...p, { id: String(Date.now()), sender: 'You', text: e.target.files![0].name, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isMine: true, type: 'image' }]); } }} />
+                      <button onClick={() => imgInputRef.current?.click()} className="p-2 text-gray-500 hover:text-[#C4AAF1] transition-all rounded-lg hover:bg-[#C4AAF1]/10"><Image size={20} /></button>
+                      <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} placeholder="Type a message..." className={`flex-1 ${inp}`} />
+                      <button onClick={sendMessage} className={`${btn} p-2.5`}><Send size={18} /></button>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* MEETINGS */}
+              {activeTab === 'meetings' && (
+                <div className="h-[440px] rounded-2xl border border-white/5 flex flex-col items-center justify-center space-y-6 relative overflow-hidden" style={{ backgroundColor: BG }}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#C4AAF1]/5 to-transparent" />
+                  <div className="w-28 h-28 rounded-full border border-[#C4AAF1]/20 bg-[#C4AAF1]/10 flex items-center justify-center animate-pulse relative">
+                    <Video className="text-[#C4AAF1]" size={44} />
+                  </div>
+                  <div className="text-center relative">
+                    <h4 className="text-2xl font-bold mb-2">Start a Room</h4>
+                    <p className="text-gray-500 text-sm max-w-xs mx-auto">Collaborate face-to-face with your team instantly.</p>
+                  </div>
+                  <button className={`${btn} py-3 px-10 text-lg shadow-[0_0_25px_rgba(196,170,241,0.2)] relative`}>Start Video Call</button>
+                </div>
+              )}
+
+              {/* JOIN REQUESTS (Owner only) */}
+              {activeTab === 'requests' && isOwner && (
+                <div className="max-w-2xl space-y-6">
+                  <div>
+                    <h4 className="text-xl font-bold mb-1">Join Requests</h4>
+                    <p className="text-gray-500 text-sm">People who want to join your team</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {joinRequests.filter(r => r.teamId === selectedTeamId).length === 0
+                      ? <div className="col-span-full py-12 text-center bg-white/2 rounded-3xl border border-dashed border-white/10">
+                        <Users size={40} className="mx-auto text-gray-700 mb-3" />
+                        <p className="text-gray-500 text-sm">No pending requests at the moment.</p>
+                      </div>
+                      : joinRequests.filter(r => r.teamId === selectedTeamId).map(req => (
+                        <div key={req.id} className="p-5 rounded-2xl border border-white/5" style={{ backgroundColor: CARD }}>
+                          <Link href={`/profile/${req.id}`} className="flex items-center gap-3 mb-4 group transition-all">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${req.color}`}>{req.initials}</div>
+                            <div>
+                              <p className="font-bold text-base group-hover:text-[#C4AAF1] transition-colors">{req.name}</p>
+                              <p className="text-gray-500 text-xs">{req.role}</p>
+                              <p className="text-gray-500 text-xs">{req.location}</p>
+                            </div>
+                          </Link>
+                          {req.gitActivity && (
+                            <div className="mb-4 p-2 rounded-lg bg-white/5 border border-white/5">
+                              <p className="text-[#C4AAF1] text-xs font-mono flex items-center gap-2">
+                                <Github size={12} /> {req.gitActivity}
+                              </p>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5 mb-5">
+                            {req.skills.map(s => (
+                              <span key={s} className="text-[10px] px-2 py-1 rounded-md bg-white/5 text-gray-400 border border-white/5 font-bold uppercase tracking-wider">{s}</span>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t border-white/5">
+                            <button onClick={() => declineRequest(req.id)} className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-gray-400 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all">Decline</button>
+                            <button onClick={() => acceptRequest(req)} className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${btn}`}>Accept</button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
       </div>
+
+      {/* ============ CREATE TEAM MODAL ============ */}
+      {showCreateTeam && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-xl rounded-3xl border border-white/10 p-8 my-auto" style={{ backgroundColor: SURF }}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black">Create Team</h2>
+              <button onClick={() => setShowCreateTeam(false)} className="text-gray-500 hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="space-y-5">
+              {/* Image Picker */}
+              <div className="flex justify-center mb-2">
+                <div className="relative group cursor-pointer" onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file'; input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () => setNewTeamData(p => ({ ...p, image: reader.result as string }));
+                      reader.readAsDataURL(file);
+                    }
+                  };
+                  input.click();
+                }}>
+                  <div className={`w-24 h-24 rounded-3xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${newTeamData.image ? 'border-[#C4AAF1]/50' : 'border-white/10 hover:border-[#C4AAF1]/30 hover:bg-white/5'}`}>
+                    {newTeamData.image ? (
+                      <img src={newTeamData.image} alt="Team" className="w-full h-full object-cover" />
+                    ) : (
+                      <Image size={28} className="text-gray-500 group-hover:text-[#C4AAF1] transition-colors" />
+                    )}
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                    <Edit2 size={14} />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Team Name</label>
+                <input type="text" value={newTeamData.name} onChange={e => setNewTeamData(p => ({ ...p, name: e.target.value }))} placeholder="Enter team name..." className={inp} />
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Description</label>
+                <textarea value={newTeamData.description} onChange={e => setNewTeamData(p => ({ ...p, description: e.target.value }))} rows={3} placeholder="Describe your team goals..." className={`${inp} resize-none`} />
+              </div>
+              {/* Tags */}
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Tags</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {TAG_SUGGESTIONS.filter(t => !newTeamData.tags.includes(t)).slice(0, 8).map(t => (
+                    <button key={t} onClick={() => handleAddTag(t)} className="text-xs px-2.5 py-1 rounded-full border border-white/10 text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/5 transition-all">{t}</button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="Custom tag..." className={inp} onKeyPress={e => { if (e.key === 'Enter') handleAddTag(tagInput); }} />
+                  <button onClick={() => handleAddTag(tagInput)} className={`${btn} px-4 text-sm`}><Plus size={16} /></button>
+                </div>
+                {newTeamData.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {newTeamData.tags.map(t => (
+                      <span key={t} className="text-xs px-2.5 py-1 rounded-full bg-[#C4AAF1]/10 text-[#C4AAF1] border border-[#C4AAF1]/20 flex items-center gap-1">
+                        {t}<button onClick={() => setNewTeamData(p => ({ ...p, tags: p.tags.filter(x => x !== t) }))}><X size={10} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Member Count */}
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Max Members</label>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setNewTeamData(p => ({ ...p, maxMembers: Math.max(2, p.maxMembers - 1) }))} className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] transition-all"><Minus size={16} /></button>
+                  <span className="text-2xl font-black w-12 text-center">{newTeamData.maxMembers}</span>
+                  <button onClick={() => setNewTeamData(p => ({ ...p, maxMembers: Math.min(20, p.maxMembers + 1) }))} className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] transition-all"><Plus size={16} /></button>
+                </div>
+              </div>
+              {/* Visibility */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-white/10 bg-white/2">
+                <div><p className="font-bold text-sm">Public Team</p><p className="text-gray-500 text-xs">Allow others to find and request to join</p></div>
+                <button onClick={() => setNewTeamData(p => ({ ...p, isPublic: !p.isPublic }))} className={`w-12 h-6 rounded-full relative transition-all ${newTeamData.isPublic ? 'bg-[#C4AAF1]' : 'bg-gray-700'}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newTeamData.isPublic ? 'right-1' : 'left-1'}`} />
+                </button>
+              </div>
+              <button onClick={handleCreateTeam} className={`w-full ${btn} py-4 text-base`}>Create Team</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ SETTINGS MODAL (Owner only) ============ */}
+      {showSettingsModal && editTeam && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-xl rounded-3xl border border-white/10 p-8 my-auto" style={{ backgroundColor: SURF }}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black">Team Settings</h2>
+              <button onClick={() => setShowSettingsModal(false)} className="text-gray-500 hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="space-y-5">
+              {/* Image Picker */}
+              <div className="flex justify-center mb-2">
+                <div className="relative group cursor-pointer" onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file'; input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = () => setEditTeam({ ...editTeam, image: reader.result as string });
+                      reader.readAsDataURL(file);
+                    }
+                  };
+                  input.click();
+                }}>
+                  <div className={`w-24 h-24 rounded-3xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all ${editTeam.image ? 'border-[#C4AAF1]/50' : 'border-white/10 hover:border-[#C4AAF1]/30 hover:bg-white/5'}`}>
+                    {editTeam.image ? (
+                      <img src={editTeam.image} alt="Team" className="w-full h-full object-cover" />
+                    ) : (
+                      <Image size={28} className="text-gray-500 group-hover:text-[#C4AAF1] transition-colors" />
+                    )}
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-[#C4AAF1] text-[#1C1C2A] flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                    <Edit2 size={14} />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Team Name</label>
+                <input type="text" value={editTeam.name} onChange={e => setEditTeam({ ...editTeam, name: e.target.value })} className={inp} />
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Description</label>
+                <textarea value={editTeam.description} onChange={e => setEditTeam({ ...editTeam, description: e.target.value })} rows={3} className={`${inp} resize-none`} />
+              </div>
+              {/* Tags */}
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Tags</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {TAG_SUGGESTIONS.filter(t => !editTeam.tags.includes(t)).slice(0, 8).map(t => (
+                    <button key={t} onClick={() => setEditTeam({ ...editTeam, tags: [...editTeam.tags, t] })} className="text-xs px-2.5 py-1 rounded-full border border-white/10 text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] hover:bg-[#C4AAF1]/5 transition-all">{t}</button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="Custom tag..." className={inp} onKeyPress={e => { if (e.key === 'Enter') { const t = tagInput.trim(); if (t && !editTeam.tags.includes(t)) setEditTeam({ ...editTeam, tags: [...editTeam.tags, t] }); setTagInput(''); } }} />
+                  <button onClick={() => { const t = tagInput.trim(); if (t && !editTeam.tags.includes(t)) setEditTeam({ ...editTeam, tags: [...editTeam.tags, t] }); setTagInput(''); }} className={`${btn} px-4 text-sm`}><Plus size={16} /></button>
+                </div>
+                {editTeam.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {editTeam.tags.map(t => (
+                      <span key={t} className="text-xs px-2.5 py-1 rounded-full bg-[#C4AAF1]/10 text-[#C4AAF1] border border-[#C4AAF1]/20 flex items-center gap-1">
+                        {t}<button onClick={() => setEditTeam({ ...editTeam, tags: editTeam.tags.filter(x => x !== t) })}><X size={10} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2 block">Max Members</label>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setEditTeam({ ...editTeam, maxMembers: Math.max(editTeam.members.length, editTeam.maxMembers - 1) })} className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] transition-all"><Minus size={16} /></button>
+                  <span className="text-2xl font-black w-12 text-center">{editTeam.maxMembers}</span>
+                  <button onClick={() => setEditTeam({ ...editTeam, maxMembers: Math.min(50, editTeam.maxMembers + 1) })} className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-gray-400 hover:border-[#C4AAF1] hover:text-[#C4AAF1] transition-all"><Plus size={16} /></button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-white/10 bg-white/2">
+                <div><p className="font-bold text-sm">Public Team</p><p className="text-gray-500 text-xs">Allow others to find and request to join</p></div>
+                <button onClick={() => setEditTeam({ ...editTeam, isPublic: !editTeam.isPublic })} className={`w-12 h-6 rounded-full relative transition-all ${editTeam.isPublic ? 'bg-[#C4AAF1]' : 'bg-gray-700'}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editTeam.isPublic ? 'right-1' : 'left-1'}`} />
+                </button>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setShowSettingsModal(false)} className="flex-1 py-4 rounded-xl text-base font-bold text-gray-400 hover:bg-white/5 border border-white/10 transition-all">Cancel</button>
+                <button onClick={saveTeamSettings} className={`flex-1 ${btn} py-4 text-base`}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ ADD PEOPLE MODAL ============ */}
+      {showAddPeopleModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-[#C4AAF1]/20 shadow-2xl shadow-[#C4AAF1]/5 flex flex-col max-h-[85vh]" style={{ backgroundColor: SURF }}>
+            <div className="p-6 border-b border-white/5 space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black tracking-tight">Add People</h2>
+                <button onClick={() => setShowAddPeopleModal(false)} className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-all"><X size={18} /></button>
+              </div>
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input type="text" value={searchPeople} onChange={e => setSearchPeople(e.target.value)} placeholder="Search by name, bio, or role..." className="w-full h-12 rounded-2xl pl-11 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none transition-all focus:ring-1 focus:ring-[#C4AAF1]/40 bg-black/40 border border-white/10 shadow-inner" />
+                </div>
+                {/* Filter button */}
+                <button onClick={()=>setShowFilterBar(p=>!p)}
+                  className={`flex items-center gap-2 h-12 px-5 rounded-2xl border text-sm font-bold transition-all flex-shrink-0 ${showFilterBar||activeChips.length>0?'text-[#C4AAF1] bg-[#C4AAF1]/10 border-[#C4AAF1]/40':'text-gray-400 hover:text-white bg-black/40 hover:border-white/30 border-white/10'}`}>
+                  <SlidersHorizontal size={16}/>
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeChips.length>0&&<span className="min-w-[20px] h-[20px] rounded-full bg-[#C4AAF1] text-[#1C1C2A] text-[11px] font-black flex items-center justify-center px-1.5 ml-1">{activeChips.length}</span>}
+                </button>
+              </div>
+
+              {/* Active Chips Row */}
+              {activeChips.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  {activeChips.map(c => (
+                    <span key={c.key+c.value} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold tracking-wide"
+                      style={{ backgroundColor:'rgba(196,170,241,0.15)', color:'#C4AAF1', border:'1px solid rgba(196,170,241,0.3)' }}>
+                      {c.label}
+                      <button onClick={()=>removeChip(c)} className="hover:text-white transition-colors ml-1"><X size={12}/></button>
+                    </span>
+                  ))}
+                  <button onClick={clearAllFilters} className="text-[11px] font-bold text-gray-500 hover:text-white px-3 py-1.5 rounded-xl hover:bg-white/5 transition-all">Clear All</button>
+                </div>
+              )}
+
+              {/* Collapsible Filter Menu */}
+              {showFilterBar && (
+                <div className="mt-5 p-6 rounded-3xl border border-white/10 space-y-6 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#C4AAF1]/5 blur-3xl rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 relative z-10">
+                    {/* Location */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Location</p>
+                      <input type="text" value={fLocation} onChange={e=>setFLocation(e.target.value)}
+                        placeholder="e.g. Remote"
+                        className="w-full h-10 rounded-xl px-3.5 text-sm text-white placeholder-gray-600 focus:outline-none transition-all focus:ring-1 focus:ring-[#C4AAF1]/50 bg-black/40 border border-white/10" />
+                    </div>
+
+                    {/* Skills */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Skills Match</p>
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"/>
+                        <input type="text" value={skillSearch} onChange={e=>setSkillSearch(e.target.value)}
+                          placeholder="Find skills…"
+                          className="w-full h-10 rounded-xl pl-9 pr-3 text-sm text-white placeholder-gray-600 focus:outline-none transition-all focus:ring-1 focus:ring-[#C4AAF1]/50 bg-black/40 border border-white/10" />
+                      </div>
+                      {skillSearch && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1" style={{ scrollbarWidth:'none' }}>
+                          {SKILL_OPTIONS.filter(s=>!fSkills.includes(s)&&s.toLowerCase().includes(skillSearch.toLowerCase())).slice(0,8).map(s=>(
+                            <button key={s} onClick={()=>{setFSkills(p=>[...p,s]);setSkillSearch('');}}
+                              className="text-xs px-3 py-1.5 rounded-full border border-white/10 text-gray-400 hover:text-[#1C1C2A] bg-black/20 hover:bg-[#C4AAF1] hover:border-[#C4AAF1] transition-all font-semibold">
+                              + {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GitHub */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">GitHub Activity</p>
+                      <div className="flex flex-col gap-2.5 pt-1">
+                        {['30+ commits/mo','60+ commits/mo'].map(opt=>(
+                          <label key={opt} className="flex items-center gap-3 cursor-pointer group">
+                            <div onClick={()=>setFGithub(p=>tog(p,opt))}
+                              className={`w-5 h-5 rounded flex items-center justify-center border transition-all shadow-inner cursor-pointer ${fGithub.includes(opt)?'bg-[#C4AAF1] border-[#C4AAF1]':'bg-black/40 border-slate-600 group-hover:border-[#C4AAF1]/50'}`}>
+                              {fGithub.includes(opt)&&<Check size={14} className="text-[#1C1C2A] font-black"/>}
+                            </div>
+                            <span className="text-xs font-semibold text-gray-400 group-hover:text-gray-200 transition-colors">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Gender */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Gender</p>
+                      <div className="flex flex-col items-start gap-2">
+                        {['Male','Female','Non-binary'].map(g=>(
+                          <button key={g} onClick={()=>setFGender(p=>tog(p,g))}
+                            className={`text-xs px-3.5 py-1.5 rounded-full border font-bold transition-all shadow-sm ${fGender.includes(g)?'bg-[#C4AAF1] border-[#C4AAF1] text-[#1C1C2A]':'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:border-white/30 hover:bg-white/5'}`}>{g}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 relative z-10" style={{ borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                    {/* Role */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Role Type</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Developer','Designer','DevOps','Data Scientist'].map(r=>(
+                          <button key={r} onClick={()=>setFRole(p=>tog(p,r))}
+                            className={`text-[11px] px-3.5 py-1.5 rounded-full border font-bold transition-all shadow-sm ${fRole.includes(r)?'bg-[#C4AAF1] border-[#C4AAF1] text-[#1C1C2A]':'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:border-white/30 hover:bg-white/5'}`}>{r}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Experience */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Experience Level</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Beginner','Intermediate','Expert'].map(e=>(
+                          <button key={e} onClick={()=>setFExp(p=>tog(p,e))}
+                            className={`text-[11px] px-3.5 py-1.5 rounded-full border font-bold transition-all shadow-sm ${fExp.includes(e)?'bg-[#C4AAF1] border-[#C4AAF1] text-[#1C1C2A]':'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:border-white/30 hover:bg-white/5'}`}>{e}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Availability */}
+                    <div>
+                      <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2.5">Availability Profile</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['Full-time','Part-time','Contract','Freelance','Weekends only'].map(a=>(
+                          <button key={a} onClick={()=>setFAvail(p=>tog(p,a))}
+                            className={`text-[11px] px-3.5 py-1.5 rounded-full border font-bold transition-all shadow-sm ${fAvail.includes(a)?'bg-[#C4AAF1] border-[#C4AAF1] text-[#1C1C2A]':'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:border-white/30 hover:bg-white/5'}`}>{a}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 relative bg-[#1C1C2A]/50">
+              <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-[#1C1C2A] to-transparent pointer-events-none z-10"></div>
+              {filteredPeople.length === 0
+                ? <p className="text-gray-500 text-sm font-medium text-center py-12">No matching people found. Adjust your filters.</p>
+                : filteredPeople.map(person => (
+                  <div key={person.id} className="flex gap-4 p-5 rounded-2xl border border-white/5 hover:border-white/10 transition-all group" style={{ backgroundColor: CARD }}>
+                    <Link href={`/profile/${person.id}`} className="shrink-0">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/5 group-hover:border-[#C4AAF1]/30 transition-all ${person.color}`}>{person.initials}</div>
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1">
+                        <Link href={`/profile/${person.id}`} className="group-hover/link">
+                          <h3 className="font-bold text-base hover:text-[#C4AAF1] transition-colors">{person.name}</h3>
+                          <p className="text-gray-400 text-xs mt-0.5">{person.role} • {person.location}</p>
+                        </Link>
+                        <button onClick={() => {
+                          const alreadyPending = pendingInvitations.some(i => i.id === person.id && i.teamId === selectedTeamId);
+                          if (alreadyPending) return;
+                          const newInvite: PendingInvitation = {
+                            id: person.id, name: person.name, email: `${person.name.split(' ')[0].toLowerCase()}@example.com`,
+                            initials: person.initials, color: person.color, role: person.role, skills: person.skills,
+                            status: 'pending', teamId: selectedTeamId, daysAgo: 0
+                          };
+                          setPendingInvitations(prev => [...prev, newInvite]);
+                          setJustInvited(person.name);
+                          setTimeout(() => setJustInvited(null), 3000);
+                        }} className={`h-9 ${btn} text-xs px-4 flex items-center justify-center gap-2 shadow-sm font-black`}>
+                          {pendingInvitations.some(i => i.id === person.id && i.teamId === selectedTeamId) ? (
+                            <>Pending</>
+                          ) : (
+                            <><UserPlus size={14} /> Add</>
+                          )}
+                        </button>
+                      </div>
+                      
+                      <p className="text-gray-300 text-sm mt-3 mb-4 line-clamp-2 leading-relaxed">{person.bio}</p>
+                      
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-[10px] px-2.5 py-1 rounded bg-black/40 text-gray-300 font-bold border border-white/5 flex items-center gap-1.5 shadow-inner">
+                          <Check size={10} className="text-emerald-400" /> {person.experience}
+                        </span>
+                        <span className="text-[10px] px-2.5 py-1 rounded bg-black/40 text-gray-300 font-bold border border-white/5 shadow-inner">
+                          {person.availability}
+                        </span>
+                        <div className="w-px h-3 bg-white/10 mx-1.5"></div>
+                        {person.skills.filter(s => selectedTeam.tags.some(t => s.toLowerCase().includes(t.toLowerCase()) || t.toLowerCase().includes(s.toLowerCase()))).map(s => (
+                          <span key={s} className="text-[10px] px-2.5 py-1 rounded bg-[#C4AAF1]/10 text-[#C4AAF1] border border-[#C4AAF1]/20 font-bold tracking-wide">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ SHARE TO FEED ============ */}
+      {showShareFeedModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4" onClick={()=>setShowShareFeedModal(false)}>
+          <div className="w-full max-w-md rounded-3xl border border-[#C4AAF1]/30 p-8 text-center space-y-6" style={{ backgroundColor: SURF }} onClick={e=>e.stopPropagation()}>
+            <div className="w-20 h-20 rounded-full bg-[#C4AAF1]/10 border border-[#C4AAF1]/20 flex items-center justify-center mx-auto">
+              <Share2 className="text-[#C4AAF1]" size={36} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black mb-2">Share to Feed?</h2>
+              <p className="text-gray-400 text-sm">Your team is public! Share it to the global feed to attract the best collaborators based on your tags.</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => {
+                const posts = JSON.parse(localStorage.getItem('scout_posts') || '[]');
+                const newlyCreatedTeam = teams.find(t=>t.id===selectedTeamId);
+                if (newlyCreatedTeam) {
+                  const newPost = {
+                    id: String(Date.now()), authorId: ME_ID, content: newlyCreatedTeam.description,
+                    tags: newlyCreatedTeam.tags, skillTags: [], likes: 0, liked: false, bookmarked: false,
+                    time: 'Just now', shares: 0, showComments: false, comments: [],
+                    type: 'team', teamId: selectedTeamId, teamData: newlyCreatedTeam
+                  };
+                  posts.unshift(newPost);
+                  localStorage.setItem('scout_posts', JSON.stringify(posts));
+                  setShowShareFeedModal(false);
+                }
+              }} className={`w-full ${btn} py-3.5 text-base shadow-[0_0_15px_rgba(196,170,241,0.2)]`}>Yes, Share to Feed</button>
+              <button onClick={() => setShowShareFeedModal(false)} className="w-full py-3.5 rounded-xl text-gray-400 font-bold text-base border border-white/10 hover:bg-white/5 transition-all">Maybe later</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ MEMBER PROFILE POPUP ============ */}
+      {selectedMemberProfile && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedMemberProfile(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 overflow-hidden" style={{ backgroundColor: SURF }} onClick={e => e.stopPropagation()}>
+            {/* Header gradient */}
+            <div className="h-24 relative" style={{ background: 'linear-gradient(135deg, rgba(196,170,241,0.15), rgba(196,170,241,0.03))' }}>
+              <button onClick={() => setSelectedMemberProfile(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-all"><X size={20} /></button>
+              {/* Avatar overlapping */}
+              <div className={`absolute -bottom-8 left-6 w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl border-4 border-[#232333] ${selectedMemberProfile.color}`}>
+                {selectedMemberProfile.initials}
+              </div>
+            </div>
+            <div className="pt-12 px-6 pb-6">
+              <div className="flex items-start justify-between mb-1">
+                <div>
+                  <h3 className="text-xl font-black">{selectedMemberProfile.name}</h3>
+                  <p className="text-gray-400 text-sm">{selectedMemberProfile.role}</p>
+                </div>
+                {selectedMemberProfile.leader && (
+                  <span className="text-xs px-2.5 py-1 rounded-full font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20">★ Owner</span>
+                )}
+              </div>
+              <div className="mt-4">
+                <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-2">Skills</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedMemberProfile.skills.length > 0
+                    ? selectedMemberProfile.skills.map(s => (
+                      <span key={s} className="text-xs px-2.5 py-1 rounded-full bg-[#C4AAF1]/10 text-[#C4AAF1] border border-[#C4AAF1]/20 font-bold">{s}</span>
+                    ))
+                    : <span className="text-gray-600 text-xs">No skills listed</span>
+                  }
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <p className="text-gray-500 text-xs">Member of <span className="text-white font-bold">{selectedTeam.name}</span></p>
+              </div>
+              {isOwner && selectedMemberProfile.id !== ME_ID && (
+                <button
+                  onClick={() => { setConfirmRemoveMember(selectedMemberProfile); setSelectedMemberProfile(null); }}
+                  className="w-full mt-4 py-2.5 rounded-xl text-sm font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all"
+                >
+                  Remove from Team
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ CONFIRM REMOVE MEMBER ============ */}
+      {confirmRemoveMember && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 p-8 text-center space-y-6" style={{ backgroundColor: SURF }}>
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
+              <Trash2 className="text-red-400" size={28} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black mb-2">Remove Member?</h3>
+              <p className="text-gray-400 text-sm">
+                Are you sure you want to remove{' '}
+                <span className="font-bold text-white">{confirmRemoveMember.name}</span>{' '}
+                from <span className="font-bold text-white">{selectedTeam.name}</span>?
+              </p>
+              <p className="text-gray-600 text-xs mt-2">This action cannot be undone.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmRemoveMember(null)} className="flex-1 py-3 rounded-xl text-sm font-bold border border-white/10 text-gray-400 hover:bg-white/5 transition-all">
+                Cancel
+              </button>
+              <button onClick={() => removeMember(confirmRemoveMember.id)} className="flex-1 py-3 rounded-xl text-sm font-bold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all">
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );a
+  );
 }
